@@ -8,7 +8,4 @@ export default {
   theme: {
     extend: {},
   },
-  plugins: [
-    require('@tailwindcss/typography'), // Enables prose styling for markdown
-  ],
 }

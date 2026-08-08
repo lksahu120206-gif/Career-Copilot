@@ -1,22 +1,27 @@
 import os
 from typing import List, Optional
+
 from dotenv import load_dotenv
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-from langchain_core.output_parsers import StrOutputParser
 from langchain_chroma import Chroma
 from langchain_community.tools import DuckDuckGoSearchRun
-from app.models.schemas import StudentProfile, ChatMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+
+from app.models.schemas import ChatMessage, StudentProfile
 
 load_dotenv()
 
-# 1. Setup Local Database Connection
+# 1. Setup Lightweight API-Based Vector Database Connection
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DB_DIR = os.path.join(BASE_DIR, "chroma_db")
 
 print("🔌 Connecting to Vector Database...")
-embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=os.getenv("GEMINI_API_KEY"))
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="models/embedding-001",
+    google_api_key=os.getenv("GEMINI_API_KEY"),
+)
 vector_store = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
 retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
@@ -27,8 +32,9 @@ web_search = DuckDuckGoSearchRun()
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash",
     google_api_key=os.getenv("GEMINI_API_KEY"),
-    temperature=0.7
+    temperature=0.7,
 )
+
 
 def generate_mentor_response(
     user_message: str,
@@ -40,7 +46,6 @@ def generate_mentor_response(
     context_text = "\n\n".join([doc.page_content for doc in docs])
 
     # Perform web search for up-to-date data if needed
-    search_results = ""
     try:
         search_results = web_search.run(user_message)
     except Exception:
@@ -72,18 +77,17 @@ def generate_mentor_response(
         ("human", "{input}")
     ])
 
-# Format history
+    # Format chat history into LangChain message objects
     formatted_history: List[BaseMessage] = []
     if chat_history:
         for msg in chat_history:
-            # msg is a ChatMessage: attribute access is fully typed
-            if msg.role == 'user':
+            if msg.role == "user":
                 formatted_history.append(HumanMessage(content=msg.text))
             else:
                 formatted_history.append(AIMessage(content=msg.text))
 
     chain = prompt | llm | StrOutputParser()
-    
+
     response = chain.invoke({
         "history": formatted_history,
         "input": user_message
