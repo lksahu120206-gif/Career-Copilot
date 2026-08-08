@@ -1,0 +1,18 @@
+# Web Framework & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+
+# Multi-Agent Framework (LangChain / LangGraph)
+langgraph>=0.0.20
+langchain>=0.1.10
+langchain-community>=0.0.25
+langchain-ollama>=0.0.1
+
+# RAG & Vector Database
+chromadb>=0.4.22
+sentence-transformers>=2.5.0
+
+# Utilities
+python-dotenv>=1.0.0
+httpx>=0.27.0
