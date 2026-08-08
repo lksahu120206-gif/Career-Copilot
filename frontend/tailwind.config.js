@@ -9,6 +9,6 @@ export default {
     extend: {},
   },
   plugins: [
-    require('@tailwindcss/typography'), // <-- This is the missing piece!
+    require('@tailwindcss/typography'), // Enables prose styling for markdown
   ],
 }

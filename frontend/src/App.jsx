@@ -20,8 +20,13 @@ function App() {
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [editTitleText, setEditTitleText] = useState("");
 
-  // 3. Theme & Profile State
-  const [isDarkMode, setIsDarkMode] = useState(false);
+// 3. Theme & Profile State
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Prefer saved preference, fall back to system preference
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [userProfile, setUserProfile] = useState({
     year: 3,
@@ -45,9 +50,20 @@ function App() {
     }
   };
 
-  useEffect(() => {
+useEffect(() => {
     fetchSessions();
   }, []);
+
+  // Apply dark mode class to the root <html> element and persist preference
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   // Auto-scroll logic
   useEffect(() => {
@@ -150,9 +166,9 @@ function App() {
         </div>
       </SignedOut>
 
-      <SignedIn>
-        {/* The Outer Div that controls the Dark Mode class toggle */}
-        <div className={isDarkMode ? 'dark' : ''}>
+<SignedIn>
+        {/* The Outer Div that controls the Dark Mode UI */}
+        <div>
           <div className="flex h-screen bg-slate-50 dark:bg-black font-sans text-slate-800 dark:text-neutral-100 overflow-hidden transition-colors duration-300">
             
             {/* --- SIDEBAR --- */}

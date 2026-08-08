@@ -62,12 +62,12 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     db.add(user_msg_db)
     db.commit()
 
-    # 3. Generate AI Response via LangChain
-    ai_text = generate_mentor_response(
-    user_message=request.message, 
-    profile=request.profile, 
-    chat_history=request.history
-)
+# 3. Generate AI Response via LangChain
+    ai_text: str = generate_mentor_response(
+        user_message=request.message,
+        profile=request.profile,
+        chat_history=request.history,
+    )
 
     # 4. Save AI Message to Database
     ai_msg_db = db_models.ChatMessageDB(session_id=session_id, role="ai", text=ai_text)

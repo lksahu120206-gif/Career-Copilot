@@ -3,12 +3,12 @@ from typing import List, Optional
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.tools import DuckDuckGoSearchRun
-from app.models.schemas import StudentProfile
+from app.models.schemas import StudentProfile, ChatMessage
 
 load_dotenv()
 
@@ -31,7 +31,11 @@ llm = ChatGoogleGenerativeAI(
     temperature=0.7
 )
 
-def generate_mentor_response(user_message: str, profile: StudentProfile, chat_history: Optional[List] = None) -> str:
+def generate_mentor_response(
+    user_message: str,
+    profile: StudentProfile,
+    chat_history: Optional[List[ChatMessage]] = None,
+) -> str:
     # Retrieve relevant documents from Chroma vector store
     docs = retriever.invoke(user_message)
     context_text = "\n\n".join([doc.page_content for doc in docs])
@@ -69,11 +73,12 @@ def generate_mentor_response(user_message: str, profile: StudentProfile, chat_hi
         ("human", "{input}")
     ])
 
-    # Format history
-    formatted_history = []
+# Format history
+    formatted_history: List[BaseMessage] = []
     if chat_history:
         for msg in chat_history:
-            if getattr(msg, 'role', None) == 'user':
+            # msg is a ChatMessage: attribute access is fully typed
+            if msg.role == 'user':
                 formatted_history.append(HumanMessage(content=msg.text))
             else:
                 formatted_history.append(AIMessage(content=msg.text))
