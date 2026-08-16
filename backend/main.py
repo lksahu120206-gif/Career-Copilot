@@ -1,3 +1,4 @@
+from app.agent.bot import generate_mentor_response, generate_chat_title
 import uuid
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,13 +49,27 @@ def rename_session(session_id: str, request: SessionRename, db: Session = Depend
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
-    # 1. Manage the Session ID
     session_id = request.session_id
-    if not session_id:
-        session_id = str(uuid.uuid4())
-        title = " ".join(request.message.split()[:5]) + "..."
+    
+    # 1. Manage the Session ID & Smart Title
+    existing_session = None
+    if session_id:
+        existing_session = db.query(db_models.ChatSession).filter(db_models.ChatSession.id == session_id).first()
+        
+    # Condition A: No ID was sent, OR an ID was sent but isn't in the database yet
+    if not session_id or not existing_session:
+        if not session_id:
+            session_id = str(uuid.uuid4())
+        
+        # Generate a smart title using Llama 3
+        title = generate_chat_title(request.message)
+        
         new_session = db_models.ChatSession(id=session_id, title=title)
         db.add(new_session)
+        db.commit()
+        
+    elif str(existing_session.title) == "New Chat":
+        existing_session.title = generate_chat_title(request.message)  # type: ignore
         db.commit()
 
     # 2. Save User Message to Database
@@ -62,12 +77,8 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     db.add(user_msg_db)
     db.commit()
 
-# 3. Generate AI Response via LangChain
-    ai_text: str = generate_mentor_response(
-        user_message=request.message,
-        profile=request.profile,
-        chat_history=request.history,
-    )
+    # 3. Generate AI Response via LangChain
+    ai_text = generate_mentor_response(request.message, request.history, request.profile)
 
     # 4. Save AI Message to Database
     ai_msg_db = db_models.ChatMessageDB(session_id=session_id, role="ai", text=ai_text)
@@ -75,3 +86,16 @@ def chat_endpoint(request: ChatRequest, db: Session = Depends(get_db)):
     db.commit()
 
     return ChatResponse(message=ai_text, session_id=session_id)
+
+# --- NEW: Delete a session ---
+@app.delete("/api/sessions/{session_id}")
+def delete_session(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(db_models.ChatSession).filter(db_models.ChatSession.id == session_id).first()
+    if session:
+        # 1. Delete all messages associated with this session first
+        db.query(db_models.ChatMessageDB).filter(db_models.ChatMessageDB.session_id == session_id).delete()
+        # 2. Delete the session itself
+        db.delete(session)
+        db.commit()
+        return {"message": "Session deleted successfully"}
+    return {"error": "Session not found"}

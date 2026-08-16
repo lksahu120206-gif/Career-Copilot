@@ -1,33 +1,5 @@
 @import "tailwindcss";
-
-/* Load the typography plugin for prose/markdown styling */
 @plugin "@tailwindcss/typography";
 
-/* Enable class-based dark mode for Tailwind v4 */
-@custom-variant dark (&:where(.dark, .dark *));
-
-/* Base theme + smooth transitions */
-html {
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  background-color: #f8fafc; /* slate-50 */
-  color: #0f172a;            /* slate-900 */
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-.dark body {
-  background-color: #000000; /* black */
-  color: #f5f5f5;            /* neutral-100 */
-}
-
-/* Basic Markdown Styling */
-.prose p { margin-bottom: 1rem; }
-.prose strong { font-weight: 700; color: #0f172a; }
-.dark .prose { color: #d4d4d4; } /* neutral-300 */
-.dark .prose strong { color: #f5f5f5; }
-.prose ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
-.prose ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
-.prose li { margin-bottom: 0.5rem; }
+/* This overrides the system default and allows manual toggling */
+@custom-variant dark (&:is(.dark *));

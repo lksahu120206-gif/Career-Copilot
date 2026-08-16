@@ -10,7 +10,3 @@ venv/
 
 # Database (Don't upload your personal chat history!)
 chat_history.db
-
-# Local Vector DB and heavy PDFs
-chroma_db/
-data/

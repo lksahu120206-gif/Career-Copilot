@@ -20,13 +20,29 @@ function App() {
   const [editingSessionId, setEditingSessionId] = useState(null);
   const [editTitleText, setEditTitleText] = useState("");
 
-// 3. Theme & Profile State
+  // 3. Theme & Profile State
+  
+  // Initialize state directly from memory so it never flashes or overwrites
   const [isDarkMode, setIsDarkMode] = useState(() => {
-    // Prefer saved preference, fall back to system preference
-    const saved = localStorage.getItem('theme');
-    if (saved) return saved === 'dark';
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
+    // If no memory exists, check their OS preference
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+
+  // Keep HTML and memory perfectly in sync whenever the button is clicked
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [userProfile, setUserProfile] = useState({
     year: 3,
@@ -50,20 +66,9 @@ function App() {
     }
   };
 
-useEffect(() => {
+  useEffect(() => {
     fetchSessions();
   }, []);
-
-  // Apply dark mode class to the root <html> element and persist preference
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isDarkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
-    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
 
   // Auto-scroll logic
   useEffect(() => {
@@ -106,6 +111,29 @@ useEffect(() => {
       fetchSessions();
     } catch (error) {
       console.error("Failed to rename session:", error);
+    }
+  };
+
+  // Delete a chat session
+  const deleteSession = async (sessionId, e) => {
+    e.stopPropagation(); // Prevent the click from loading the chat
+    
+    if (!window.confirm("Are you sure you want to delete this chat?")) return;
+
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/sessions/${sessionId}`, {
+        method: "DELETE",
+      });
+      
+      if (response.ok) {
+        // If they delete the chat they are currently looking at, clear the screen
+        if (currentSessionId === sessionId) {
+          startNewChat();
+        }
+        fetchSessions(); // Refresh the sidebar
+      }
+    } catch (error) {
+      console.error("Failed to delete session:", error);
     }
   };
 
@@ -166,9 +194,9 @@ useEffect(() => {
         </div>
       </SignedOut>
 
-<SignedIn>
-        {/* The Outer Div that controls the Dark Mode UI */}
-        <div>
+      <SignedIn>
+        {/* The Outer Div that controls the Dark Mode class toggle */}
+        <div className={isDarkMode ? 'dark' : ''}>
           <div className="flex h-screen bg-slate-50 dark:bg-black font-sans text-slate-800 dark:text-neutral-100 overflow-hidden transition-colors duration-300">
             
             {/* --- SIDEBAR --- */}
@@ -211,18 +239,31 @@ useEffect(() => {
                           }`}
                         >
                           <svg className="w-4 h-4 shrink-0 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-                          <span className="truncate pr-6">{session.title}</span>
+                          <span className="truncate pr-16">{session.title}</span>
                         </button>
                         
-                        <button 
-                          onClick={() => {
-                            setEditingSessionId(session.id);
-                            setEditTitleText(session.title);
-                          }}
-                          className="absolute right-2 p-1 text-slate-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                        </button>
+                        {/* --- NEW: Edit & Delete Buttons Container --- */}
+                        <div className="absolute right-2 flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-50 dark:bg-neutral-900 shadow-[-12px_0_10px_rgba(248,250,252,1)] dark:shadow-[-12px_0_10px_rgba(23,23,23,1)] pr-1 rounded-r-lg">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingSessionId(session.id);
+                              setEditTitleText(session.title);
+                            }}
+                            className="p-1.5 text-slate-400 dark:text-neutral-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                            title="Rename chat"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </button>
+
+                          <button 
+                            onClick={(e) => deleteSession(session.id, e)}
+                            className="p-1.5 text-slate-400 dark:text-neutral-500 hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                            title="Delete chat"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
                       </>
                     )}
                   </div>
@@ -324,7 +365,7 @@ useEffect(() => {
                         {msg.role === 'user' ? (
                           <div className="whitespace-pre-wrap">{msg.text}</div>
                         ) : (
-                          <div className="prose prose-slate dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-neutral-800 prose-pre:text-slate-50">
+                          <div className="prose prose-sm md:prose-base dark:prose-invert max-w-none font-sans text-slate-700 dark:text-neutral-300 dark:prose-strong:text-emerald-400">
                             <ReactMarkdown>{msg.text}</ReactMarkdown>
                           </div>
                         )}
@@ -349,7 +390,7 @@ useEffect(() => {
               </main>
 
               {/* Input Form */}
-              <footer className="absolute bottom-0 w-full bg-gradient-to-t from-slate-50 dark:from-black via-slate-50 dark:via-black to-transparent pt-4 pb-6 px-4 flex justify-center transition-colors duration-300">
+              <footer className="absolute bottom-0 w-full bg-linear-to-t from-slate-50 dark:from-black via-slate-50 dark:via-black to-transparent pt-4 pb-6 px-4 flex justify-center transition-colors duration-300">
                 <form 
                   onSubmit={handleSendMessage} 
                   className="w-full max-w-3xl relative flex items-end shadow-md bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-800 rounded-3xl overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:border-transparent transition-all"
